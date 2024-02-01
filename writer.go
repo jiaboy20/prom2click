@@ -8,13 +8,18 @@ import (
 
 	"sync"
 
-	"github.com/kshvakov/clickhouse"
+	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var insertSQL = `INSERT INTO %s.%s
-	(date, name, tags, val, ts)
-	VALUES	(?, ?, ?, ?, ?)`
+// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 start
+// var insertSQL = `INSERT INTO %s.%s
+//
+//	(date, name, tags, val, ts)
+//	VALUES	(?, ?, ?, ?, ?)`
+var insertSQL = `INSERT INTO %s.%s (metrics_time, metrics_name, labels, value, updated)`
+
+// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 end
 
 type p2cWriter struct {
 	conf     *config
@@ -32,12 +37,19 @@ func NewP2CWriter(conf *config, reqs chan *p2cRequest) (*p2cWriter, error) {
 	w := new(p2cWriter)
 	w.conf = conf
 	w.requests = reqs
-	w.db, err = sql.Open("clickhouse", w.conf.ChDSN)
+	// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 start
+	// w.db, err = sql.Open("clickhouse", w.conf.ChDSN)
+	// wdsn := fmt.Sprintf("%s&insert_quorum=1&insert_quorum_parallel=0&select_sequential_consistency=1&wait_end_of_query=1", w.conf.ChDSN)
+	// w.db, err = sql.Open("clickhouse", wdsn)
+	w.db, err = GetOpenDBConnection(w.conf.ChAddr, w.conf.ChDB, w.conf.ChUser, w.conf.ChPasswd)
+	// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 end
 	if err != nil {
 		fmt.Printf("Error connecting to clickhouse: %s\n", err.Error())
 		return w, err
 	}
-
+	// add by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 start
+	w.db.SetMaxIdleConns(5)
+	// add by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 end
 	w.tx = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "sent_samples_total",
@@ -79,7 +91,10 @@ func (w *p2cWriter) Start() {
 	go func() {
 		w.wg.Add(1)
 		fmt.Println("Writer starting..")
-		sql := fmt.Sprintf(insertSQL, w.conf.ChDB, w.conf.ChTable)
+		// modify by jiangkun0928 for 功能优化 on 20240130 start
+		// sql := fmt.Sprintf(insertSQL, w.conf.ChDB, w.conf.ChTable)
+		sql := fmt.Sprintf(insertSQL, w.conf.ChDB, w.conf.ChWriteTable)
+		// modify by jiangkun0928 for 功能优化 on 20240130 end
 		ok := true
 		for ok {
 			w.test.Add(1)
@@ -89,7 +104,7 @@ func (w *p2cWriter) Start() {
 			tstart := time.Now()
 			for i := 0; i < w.conf.ChBatch; i++ {
 				var req *p2cRequest
-				// get requet and also check if channel is closed
+				// get request and also check if channel is closed
 				req, ok = <-w.requests
 				if !ok {
 					fmt.Println("Writer stopping..")
@@ -124,8 +139,11 @@ func (w *p2cWriter) Start() {
 				// ensure tags are inserted in the same order each time
 				// possibly/probably impacts indexing?
 				sort.Strings(req.tags)
-				_, err = smt.Exec(req.ts, req.name, clickhouse.Array(req.tags),
-					req.val, req.ts)
+				// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 start
+				// _, err = smt.Exec(req.ts, req.name, clickhouse.Array(req.tags),
+				//     req.val, req.ts)
+				_, err = smt.Exec(req.ts, req.name, req.tags, req.val, time.Now())
+				// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 end
 
 				if err != nil {
 					fmt.Printf("Error: statement exec: %s\n", err.Error())

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -59,7 +59,10 @@ func NewP2CServer(conf *config) (*p2cServer, error) {
 	prometheus.MustRegister(c.rx)
 
 	c.mux.HandleFunc(c.conf.HTTPWritePath, func(w http.ResponseWriter, r *http.Request) {
-		compressed, err := ioutil.ReadAll(r.Body)
+		// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 start
+		// compressed, err := ioutil.ReadAll(r.Body)
+		compressed, err := io.ReadAll(r.Body)
+		// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 end
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -79,9 +82,12 @@ func NewP2CServer(conf *config) (*p2cServer, error) {
 
 		c.process(req)
 	})
-
-	c.mux.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
-		compressed, err := ioutil.ReadAll(r.Body)
+	// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 start
+	// c.mux.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
+	// compressed, err := ioutil.ReadAll(r.Body)
+	c.mux.HandleFunc(c.conf.HTTPReadPath, func(w http.ResponseWriter, r *http.Request) {
+		compressed, err := io.ReadAll(r.Body)
+		// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 end
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
