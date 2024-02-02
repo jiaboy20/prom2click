@@ -16,8 +16,7 @@
                 "-ch.password", "fide@1234",
                 "-ch.db", "fidedw",
                 "-ch.writeTable", "ods_app_metrics_ed",
-                "-ch.batch", "10000",
-                "-log.level", "info"
+                "-ch.batch", "10000"
             ]
         }
     ]

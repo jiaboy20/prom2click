@@ -1,20 +1,36 @@
-package: github.com/s4z/prom2click
+package: .
 import:
-- package: github.com/golang/protobuf
+- package: bytes
+- package: database/sql
+- package: errors
+- package: flag
+- package: fmt
+- package: github.com/ClickHouse/clickhouse-go
+  subpackages:
+  - v2
+- package: github.com/gogo/protobuf
   subpackages:
   - proto
 - package: github.com/golang/snappy
+  version: ~0.0.4
 - package: github.com/prometheus/client_golang
-  version: v0.8.0
+  version: ~1.18.0
   subpackages:
   - prometheus
+  - prometheus/promhttp
 - package: github.com/prometheus/common
+  version: ~0.46.0
   subpackages:
-  - log
   - model
 - package: github.com/prometheus/prometheus
   subpackages:
-  - storage/remote
+  - prompb
 - package: gopkg.in/tylerb/graceful.v1
-  version: v1.2.15
-- package: github.com/kshvakov/clickhouse
+  version: ~1.2.15
+- package: io
+- package: net/http
+- package: os
+- package: sort
+- package: strings
+- package: sync
+- package: time

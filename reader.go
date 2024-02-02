@@ -9,7 +9,7 @@ import (
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/prometheus/common/model"
-	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/prometheus/prometheus/prompb"
 )
 
 type p2cReader struct {
@@ -20,7 +20,7 @@ type p2cReader struct {
 // getTimePeriod return select and where SQL chunks relating to the time period -or- error
 // modify by jiangkun0928 for 采用clickhouse的graphite_rollup实现数据上卷，删除无用的配置项 on 20240130 start
 // func (r *p2cReader) getTimePeriod(query *remote.Query) (string, string, error) {
-func (r *p2cReader) getTimePeriod(query *remote.Query) (string, error) {
+func (r *p2cReader) getTimePeriod(query *prompb.Query) (string, error) {
 	// modify by jiangkun0928 for 采用clickhouse的graphite_rollup实现数据上卷，删除无用的配置项 on 20240130 end
 	// modify by jiangkun0928 for 采用clickhouse的graphite_rollup实现数据上卷，删除无用的配置项 on 20240130 start
 	// var tselSQL = "SELECT COUNT() AS CNT, (intDiv(toUInt32(metrics_time), %d) * %d) * 1000 as t"
@@ -61,9 +61,13 @@ func (r *p2cReader) getTimePeriod(query *remote.Query) (string, error) {
 	// modify by jiangkun0928 for 采用clickhouse的graphite_rollup实现数据上卷，删除无用的配置项 on 20240130 end
 }
 
-func (r *p2cReader) getSQL(query *remote.Query) (string, error) {
+// modify by jiangkun0928 for 功能优化 on 20240130 start
+// func (r *p2cReader) getSQL(query *remote.Query) (string, error) {
+func (r *p2cReader) getSQL(query *prompb.Query) (string, error) {
+	// modify by jiangkun0928 for 功能优化 on 20240130 end
 	// time related select sql, where sql chunks
 	// modify by jiangkun0928 for 采用clickhouse的graphite_rollup实现数据上卷，删除无用的配置项 on 20240130 start
+	// tselectSQL, twhereSQL, err := r.getTimePeriod(query)
 	twhereSQL, err := r.getTimePeriod(query)
 	// modify by jiangkun0928 for 采用clickhouse的graphite_rollup实现数据上卷，删除无用的配置项 on 20240130 end
 	if err != nil {
@@ -81,13 +85,25 @@ func (r *p2cReader) getSQL(query *remote.Query) (string, error) {
 		if m.Name == model.MetricNameLabel {
 			var whereAdd string
 			switch m.Type {
-			case remote.MatchType_EQUAL:
+			// modify by jiangkun0928 for 功能优化 on 20240130 start
+			// case remote.MatchType_EQUAL:
+			case prompb.LabelMatcher_EQ:
+				// modify by jiangkun0928 for 功能优化 on 20240130 end
 				whereAdd = fmt.Sprintf(` metrics_name='%s' `, strings.Replace(m.Value, `'`, `\'`, -1))
-			case remote.MatchType_NOT_EQUAL:
+			// modify by jiangkun0928 for 功能优化 on 20240130 start
+			// case remote.MatchType_NOT_EQUAL:
+			case prompb.LabelMatcher_NEQ:
+				// modify by jiangkun0928 for 功能优化 on 20240130 end
 				whereAdd = fmt.Sprintf(` metrics_name!='%s' `, strings.Replace(m.Value, `'`, `\'`, -1))
-			case remote.MatchType_REGEX_MATCH:
+			// modify by jiangkun0928 for 功能优化 on 20240130 start
+			// case remote.MatchType_REGEX_MATCH:
+			case prompb.LabelMatcher_RE:
+				// modify by jiangkun0928 for 功能优化 on 20240130 end
 				whereAdd = fmt.Sprintf(` match(metrics_name, %s) = 1 `, strings.Replace(m.Value, `/`, `\/`, -1))
-			case remote.MatchType_REGEX_NO_MATCH:
+			// modify by jiangkun0928 for 功能优化 on 20240130 start
+			// case remote.MatchType_REGEX_NO_MATCH:
+			case prompb.LabelMatcher_NRE:
+				// modify by jiangkun0928 for 功能优化 on 20240130 end
 				whereAdd = fmt.Sprintf(` match(metrics_name, %s) = 0 `, strings.Replace(m.Value, `/`, `\/`, -1))
 			}
 			mwhereSQL = append(mwhereSQL, whereAdd)
@@ -95,7 +111,10 @@ func (r *p2cReader) getSQL(query *remote.Query) (string, error) {
 		}
 
 		switch m.Type {
-		case remote.MatchType_EQUAL:
+		// modify by jiangkun0928 for 功能优化 on 20240130 start
+		// case remote.MatchType_EQUAL:
+		case prompb.LabelMatcher_EQ:
+			// modify by jiangkun0928 for 功能优化 on 20240130 end
 			var insql bytes.Buffer
 			asql := "arrayExists(x -> x IN (%s), labels) = 1"
 			// value appears to be | sep'd for multiple matches
@@ -113,8 +132,10 @@ func (r *p2cReader) getSQL(query *remote.Query) (string, error) {
 			}
 			wstr := fmt.Sprintf(asql, insql.String())
 			mwhereSQL = append(mwhereSQL, wstr)
-
-		case remote.MatchType_NOT_EQUAL:
+		// modify by jiangkun0928 for 功能优化 on 20240130 start
+		// case remote.MatchType_NOT_EQUAL:
+		case prompb.LabelMatcher_NEQ:
+			// modify by jiangkun0928 for 功能优化 on 20240130 end
 			var insql bytes.Buffer
 			asql := "arrayExists(x -> x IN (%s), labels) = 0"
 			// value appears to be | sep'd for multiple matches
@@ -132,8 +153,10 @@ func (r *p2cReader) getSQL(query *remote.Query) (string, error) {
 			}
 			wstr := fmt.Sprintf(asql, insql.String())
 			mwhereSQL = append(mwhereSQL, wstr)
-
-		case remote.MatchType_REGEX_MATCH:
+		// modify by jiangkun0928 for 功能优化 on 20240130 start
+		// case remote.MatchType_REGEX_MATCH:
+		case prompb.LabelMatcher_RE:
+			// modify by jiangkun0928 for 功能优化 on 20240130 end
 			asql := `arrayExists(x -> 1 == match(x, '^%s=%s'), labels) = 1`
 			// we can't have ^ in the regexp since keys are stored in arrays of key=value
 			if strings.HasPrefix(m.Value, "^") {
@@ -144,8 +167,10 @@ func (r *p2cReader) getSQL(query *remote.Query) (string, error) {
 				val := strings.Replace(m.Value, `/`, `\/`, -1)
 				mwhereSQL = append(mwhereSQL, fmt.Sprintf(asql, m.Name, val))
 			}
-
-		case remote.MatchType_REGEX_NO_MATCH:
+		// modify by jiangkun0928 for 功能优化 on 20240130 start
+		// case remote.MatchType_REGEX_NO_MATCH:
+		case prompb.LabelMatcher_NRE:
+			// modify by jiangkun0928 for 功能优化 on 20240130 end
 			asql := `arrayExists(x -> 1 == match(x, '^%s=%s'), labels) = 0`
 			if strings.HasPrefix(m.Value, "^") {
 				val := strings.Replace(m.Value, "^", "", 1)
@@ -163,7 +188,7 @@ func (r *p2cReader) getSQL(query *remote.Query) (string, error) {
 	// tempSQL := "%s, metrics_name, labels, quantile(%f)(value) as value FROM %s.%s %s AND %s GROUP BY t, metrics_name, labels ORDER BY t"
 	// sql := fmt.Sprintf(tempSQL, tselectSQL, r.conf.CHQuantile, r.conf.ChDB, r.conf.ChTable, twhereSQL,
 	// 	strings.Join(mwhereSQL, " AND "))
-	tempSQL := "SELECT toUnixTimestamp(metrics_time) * 1000 as t, metrics_name, labels, value FROM %s.%s %s AND %s ORDER BY metrics_time"
+	tempSQL := "SELECT toUnixTimestamp(metrics_time) * 1000 as t, metrics_name, labels, max(value) as value FROM %s.%s %s AND %s GROUP BY t, metrics_name, labels ORDER BY t"
 	sql := fmt.Sprintf(tempSQL, r.conf.ChDB, r.conf.ChReadTable, twhereSQL, strings.Join(mwhereSQL, " AND "))
 	// modify by jiangkun0928 for 采用clickhouse的graphite_rollup实现数据上卷修改数据聚合方式 on 20240130 end
 	return sql, nil
@@ -187,22 +212,23 @@ func NewP2CReader(conf *config) (*p2cReader, error) {
 	return r, nil
 }
 
-func (r *p2cReader) Read(req *remote.ReadRequest) (*remote.ReadResponse, error) {
+// modify by jiangkun0928 for 功能优化 on 20240130 start
+// func (r *p2cReader) Read(req *remote.ReadRequest) (*remote.ReadResponse, error) {
+func (r *p2cReader) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
+	// modify by jiangkun0928 for 功能优化 on 20240130 end
 	var err error
 	var sqlStr string
 	var rows *sql.Rows
-
-	resp := remote.ReadResponse{
-		Results: []*remote.QueryResult{
-			// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 start
-			// {Timeseries: make([]*remote.TimeSeries, 0, 0)},
-			{Timeseries: make([]*remote.TimeSeries, 0)},
-			// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 end
-		},
-	}
-	// need to map tags to timeseries to record samples
-	var tsres = make(map[string]*remote.TimeSeries)
-
+	// modify by jiangkun0928 for 功能优化 on 20240130 start
+	// resp := remote.ReadResponse{
+	// 	Results: []*remote.QueryResult{
+	// 		{Timeseries: make([]*remote.TimeSeries, 0, 0)},
+	// 	},
+	// }
+	// // need to map tags to timeseries to record samples
+	// var tsres = make(map[string]*remote.TimeSeries)
+	resp := prompb.ReadResponse{}
+	// modify by jiangkun0928 for 功能优化 on 20240130 end
 	// for debugging/figuring out query format/etc
 	rcount := 0
 	for _, q := range req.Queries {
@@ -231,8 +257,12 @@ func (r *p2cReader) Read(req *remote.ReadRequest) (*remote.ReadResponse, error) 
 			return &resp, err
 		}
 
+		// add by jiangkun0928 for 功能优化 on 20240130 start
+		qresults := &prompb.QueryResult{}
+		resp.Results = append(resp.Results, qresults)
+		var ts *prompb.TimeSeries
+		// add by jiangkun0928 for 功能优化 on 20240130 end
 		// build map of timeseries from sql result
-
 		for rows.Next() {
 			rcount++
 			var (
@@ -251,39 +281,53 @@ func (r *p2cReader) Read(req *remote.ReadRequest) (*remote.ReadResponse, error) 
 			if err = rows.Scan(&t, &name, &tags, &value); err != nil {
 				fmt.Printf("Error: scan: %s\n", err.Error())
 			}
-			// modify by jiangkun0928 for 采用clickhouse的graphite_rollup实现数据上卷，删除无用的配置项 on 20240130 start
+			// modify by jiangkun0928 for 采用clickhouse的graphite_rollup实现数据上卷，删除无用的配置项 on 20240130 end
 			// remove this..
 			//fmt.Printf(fmt.Sprintf("%d,%d,%s,%s,%f\n", cnt, t, name, strings.Join(tags, ":"), value))
-
-			// borrowed from influx remote storage adapter - array sep
-			key := strings.Join(tags, "\xff")
-			ts, ok := tsres[key]
-			if !ok {
-				ts = &remote.TimeSeries{
-					Labels: makeLabels(tags),
-				}
-				tsres[key] = ts
+			// modify by jiangkun0928 for 功能优化 on 20240130 start
+			// // borrowed from influx remote storage adapter - array sep
+			// key := strings.Join(tags, "\xff")
+			// ts, ok := tsres[key]
+			// if !ok {
+			// 	ts = &remote.TimeSeries{
+			// 		Labels: makeLabels(tags),
+			// 	}
+			// 	tsres[key] = ts
+			// }
+			// ts.Samples = append(ts.Samples, &remote.Sample{
+			// 	Value:       float64(value),
+			// 	TimestampMs: t,
+			// })
+			ts = &prompb.TimeSeries{
+				Labels: makeLabels(tags),
 			}
-			ts.Samples = append(ts.Samples, &remote.Sample{
-				Value:       float64(value),
-				TimestampMs: t,
+			ts.Samples = append(ts.Samples, prompb.Sample{
+				Value:     float64(value),
+				Timestamp: t,
 			})
+			qresults.Timeseries = append(qresults.Timeseries, ts)
+			// modify by jiangkun0928 for 功能优化 on 20240130 end
 		}
 	}
-
+	// delete by jiangkun0928 for 功能优化 on 20240130 start
 	// now add results to response
-	for _, ts := range tsres {
-		resp.Results[0].Timeseries = append(resp.Results[0].Timeseries, ts)
-	}
-
+	// for _, ts := range tsres {
+	// 	resp.Results[0].Timeseries = append(resp.Results[0].Timeseries, ts)
+	// }
+	// delete by jiangkun0928 for 功能优化 on 20240130 end
 	fmt.Printf("query: returning %d rows for %d queries\n", rcount, len(req.Queries))
 
 	return &resp, nil
 
 }
 
-func makeLabels(tags []string) []*remote.LabelPair {
-	lpairs := make([]*remote.LabelPair, 0, len(tags))
+// modify by jiangkun0928 for 功能优化 on 20240130 start
+//
+//	func makeLabels(tags []string) []*remote.LabelPair {
+//		lpairs := make([]*remote.LabelPair, 0, len(tags))
+func makeLabels(tags []string) []prompb.Label {
+	lpairs := make([]prompb.Label, 0, len(tags))
+	// modify by jiangkun0928 for 功能优化 on 20240130 end
 	// (currently) writer includes __name__ in tags so no need to add it here
 	// may change this to save space later..
 	for _, tag := range tags {
@@ -295,7 +339,10 @@ func makeLabels(tags []string) []*remote.LabelPair {
 		if vals[1] == "" {
 			continue
 		}
-		lpairs = append(lpairs, &remote.LabelPair{
+		// modify by jiangkun0928 for 功能优化 on 20240130 start
+		// lpairs = append(lpairs, &remote.LabelPair{
+		lpairs = append(lpairs, prompb.Label{
+			// modify by jiangkun0928 for 功能优化 on 20240130 end
 			Name:  vals[0],
 			Value: vals[1],
 		})
