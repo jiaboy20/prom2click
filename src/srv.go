@@ -188,11 +188,15 @@ func (c *p2cServer) Start() error {
 }
 
 func (c *p2cServer) Shutdown() {
-	close(c.requests)
-	c.writer.Wait()
-
+	// delete by jiangkun0928 for 功能优化 on 20240130 start
+	// close(c.requests)
+	// c.writer.Wait()
+	// delete by jiangkun0928 for 功能优化 on 20240130 end
 	wchan := make(chan struct{})
 	go func() {
+		fmt.Println("Close requests channel..")
+		close(c.requests)
+		fmt.Println("Wait for writer to shutdown..")
 		c.writer.Wait()
 		close(wchan)
 	}()
@@ -204,5 +208,4 @@ func (c *p2cServer) Shutdown() {
 	case <-time.After(10 * time.Second):
 		fmt.Println("Writer shutdown timed out, samples will be lost..")
 	}
-
 }

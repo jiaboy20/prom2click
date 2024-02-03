@@ -6,9 +6,11 @@ import:
 - package: flag
 - package: fmt
 - package: github.com/ClickHouse/clickhouse-go
+  version: ~2.18.0
   subpackages:
   - v2
 - package: github.com/gogo/protobuf
+  version: ~1.3.2
   subpackages:
   - proto
 - package: github.com/golang/snappy
@@ -23,6 +25,7 @@ import:
   subpackages:
   - model
 - package: github.com/prometheus/prometheus
+  version: ~2.49.1
   subpackages:
   - prompb
 - package: gopkg.in/tylerb/graceful.v1

@@ -67,6 +67,7 @@ func main() {
 		excode = 1
 		os.Exit(excode)
 	}
+
 	err = srv.Start()
 	if err != nil {
 		fmt.Printf("Error: http server returned error: %s\n", err.Error())
