@@ -21,7 +21,13 @@ function start()
       fi
   fi
 
-  nohup $PROM2CLICK_HOME/prom2click "-ch.addr" "$CK_SERVER" "-ch.user" "$CK_USER" "-ch.password" "$CK_PASSWORD" "-ch.db" "$CK_DB" "-ch.writeTable" "$CK_TABLE" "-ch.batch" "$CK_BATCH_SIZE" > $PROM2CLICK_LOG 2>&1 &
+  nohup $PROM2CLICK_HOME/prom2click \
+          "-ch.addr" "$CK_SERVER" \
+          "-ch.user" "$CK_USER" \
+          "-ch.password" "$CK_PASSWORD" \
+          "-ch.db" "$CK_DB" \
+          "-ch.writeTable" "$CK_TABLE" \
+          "-ch.batch" "$CK_BATCH_SIZE" > $PROM2CLICK_LOG 2>&1 &
 
   pid=$!
   sleep 2
