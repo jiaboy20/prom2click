@@ -20,6 +20,7 @@ glide init
 * 像java maven一样，下载go的各种包
 
 ```console
+go mod init focustech.com/prom2click
 go mod tidy
 go mod vendor
 ```
