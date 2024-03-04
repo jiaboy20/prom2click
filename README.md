@@ -6,7 +6,7 @@
 go编译在不同OS下会生成不同的执行文件，如果需要生成linux下可执行的文件，需要在linux上执行以下命令
 
 ```console
-git clone http://git.vemic.com/fbi/fide/prom2click.git
+git clone https://git.vemic.com/fbi/fide/prom2click.git
 ```
 
 ## 项目编译
