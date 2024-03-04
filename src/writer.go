@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"sync"
@@ -138,11 +139,19 @@ func (w *p2cWriter) Start() {
 
 				// ensure tags are inserted in the same order each time
 				// possibly/probably impacts indexing?
-				sort.Strings(req.tags)
 				// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 start
+				// sort.Strings(req.tags)
 				// _, err = smt.Exec(req.ts, req.name, clickhouse.Array(req.tags),
 				//     req.val, req.ts)
-				_, err = smt.Exec(req.ts, req.name, req.tags, req.val, time.Now())
+				// 排除掉标签中包含的__name__标签，否则会导致prometheus查询时报"vector cannot contain metrics with the same labelset"错误
+				var newTags []string
+				for _, tag := range req.tags {
+					if !strings.HasPrefix(tag, "__name__=") {
+						newTags = append(newTags, tag)
+					}
+				}
+				sort.Strings(newTags)
+				_, err = smt.Exec(req.ts, req.name, newTags, req.val, time.Now())
 				// modify by jiangkun0928 for 升级clickhouse client版本到v2.17.1 on 20240131 end
 
 				if err != nil {
