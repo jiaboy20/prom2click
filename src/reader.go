@@ -228,6 +228,7 @@ func (r *p2cReader) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) 
 	// // need to map tags to timeseries to record samples
 	// var tsres = make(map[string]*remote.TimeSeries)
 	resp := prompb.ReadResponse{}
+	var tSeries = make(map[string]*prompb.TimeSeries)
 	// modify by jiangkun0928 for 功能优化 on 20240130 end
 	// for debugging/figuring out query format/etc
 	rcount := 0
@@ -257,11 +258,6 @@ func (r *p2cReader) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) 
 			return &resp, err
 		}
 
-		// add by jiangkun0928 for 功能优化 on 20240130 start
-		qresults := &prompb.QueryResult{}
-		resp.Results = append(resp.Results, qresults)
-		var ts *prompb.TimeSeries
-		// add by jiangkun0928 for 功能优化 on 20240130 end
 		// build map of timeseries from sql result
 		for rows.Next() {
 			rcount++
@@ -298,23 +294,34 @@ func (r *p2cReader) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) 
 			// 	Value:       float64(value),
 			// 	TimestampMs: t,
 			// })
-			ts = &prompb.TimeSeries{
-				Labels: makeLabels(tags),
+			tagsStr := strings.Join(tags, "\xff")
+			ts, ok := tSeries[tagsStr]
+			if !ok {
+				ts = &prompb.TimeSeries{
+					Labels: makeLabels(tags),
+				}
+				tSeries[tagsStr] = ts
 			}
 			ts.Samples = append(ts.Samples, prompb.Sample{
 				Value:     float64(value),
 				Timestamp: t,
 			})
-			qresults.Timeseries = append(qresults.Timeseries, ts)
 			// modify by jiangkun0928 for 功能优化 on 20240130 end
 		}
 	}
-	// delete by jiangkun0928 for 功能优化 on 20240130 start
+	// modify by jiangkun0928 for 功能优化 on 20240130 start
 	// now add results to response
 	// for _, ts := range tsres {
 	// 	resp.Results[0].Timeseries = append(resp.Results[0].Timeseries, ts)
 	// }
-	// delete by jiangkun0928 for 功能优化 on 20240130 end
+	var tSeriesArr []*prompb.TimeSeries
+	for _, tempTs := range tSeries {
+		tSeriesArr = append(tSeriesArr, tempTs)
+	}
+	resp.Results = append(resp.Results, &prompb.QueryResult{
+		Timeseries: tSeriesArr,
+	})
+	// modify by jiangkun0928 for 功能优化 on 20240130 end
 	fmt.Printf("query: returning %d rows for %d queries\n", rcount, len(req.Queries))
 
 	return &resp, nil
